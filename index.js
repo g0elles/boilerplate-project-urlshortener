@@ -8,7 +8,7 @@ var mongoose = require('mongoose');
 mongoose.connect(process.env.MONGO_URI);
 
 const Schema = mongoose.Schema;
-
+const dnsPromises = dns.promises;
 const NewUrlSchema = new Schema({
   initial: String,
   new: Number
@@ -56,19 +56,28 @@ app.get("/api/shorturl/:shortenedUrl", async function (req, res) {
 });
 
 
-app.post("/api/shorturl", async function (req, res) {
+app.post("/api/shorturl", async function (req, res, next) {
   const {
     url: url
   } = req.body;
 
   try {
     const urlWithoutProtocol = url.replace(/^https?:\/\//i, "");
-    await dnsPromises.lookup(urlWithoutProtocol);
+    dnsPromises.lookup(urlWithoutProtocol)
+    .then((VASL)=>{
+
+
+    })
+    .catch((ERROR)=>{})
   } catch (e) {
     res.json({
       error: "invalid URL"
     });
   }
+
+  let exist = await Url.findOne({initial: url});
+
+  if(exist) res.json({ original_url: url, short_url: exist.new})
 
   const lastCreatedUrl = await Url.findOne().sort({
       field: "asc",
@@ -87,6 +96,7 @@ app.post("/api/shorturl", async function (req, res) {
       original_url: finalUrl.original,
       short_url: finalUrl.new
     });
+    next();
   } catch (err) {
     res.status(500).send(err);
   }
