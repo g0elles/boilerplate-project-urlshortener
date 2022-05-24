@@ -61,45 +61,50 @@ app.post("/api/shorturl", async function (req, res, next) {
     url: url
   } = req.body;
 
-  try {
-    const urlWithoutProtocol = url.replace(/^https?:\/\//i, "");
-    dnsPromises.lookup(urlWithoutProtocol)
-    .then((VASL)=>{
+  const urlWithoutProtocol = url.replace(/^https?:\/\//i, "");
+  dnsPromises.lookup(urlWithoutProtocol)
+    .then(async (val) => {
+      let exist = await Url.findOne({
+        initial: url
+      });
+      if (exist) {
+        res.json({
+          original_url: url,
+          short_url: exist.new
+        });
+      }
 
+      const lastCreatedUrl = await Url.findOne().sort({
+          field: "asc",
+          _id: -1
+        })
+        .exec();
+
+      try {
+        const newUrl = new Url({
+          initial: url,
+          new: lastCreatedUrl ? lastCreatedUrl.new + 1 : 1
+        });
+        const finalUrl = await newUrl.save();
+
+        res.json({
+          original_url: finalUrl.original,
+          short_url: finalUrl.new
+        });
+        next();
+      } catch (err) {
+        res.status(500).send(err);
+      }
 
     })
-    .catch((ERROR)=>{})
-  } catch (e) {
-    res.json({
-      error: "invalid URL"
+    .catch((e) => {
+      res.json({
+        error: "invalid URL"
+      });
     });
-  }
+  next();
 
-  let exist = await Url.findOne({initial: url});
 
-  if(exist) res.json({ original_url: url, short_url: exist.new})
-
-  const lastCreatedUrl = await Url.findOne().sort({
-      field: "asc",
-      _id: -1
-    })
-    .exec();
-
-  try {
-    const newUrl = new Url({
-      initial: url,
-      new: lastCreatedUrl ? lastCreatedUrl.new + 1 : 1
-    });
-    const finalUrl = await newUrl.save();
-
-    res.json({
-      original_url: finalUrl.original,
-      short_url: finalUrl.new
-    });
-    next();
-  } catch (err) {
-    res.status(500).send(err);
-  }
 });
 
 
