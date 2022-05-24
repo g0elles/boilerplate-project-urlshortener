@@ -57,12 +57,11 @@ app.get("/api/shorturl/:shortenedUrl", async function (req, res) {
 
 
 app.post("/api/shorturl", async function (req, res, next) {
-  const {
-    url: url
-  } = req.body;
+  const url = req.body.url;
 
   const urlWithoutProtocol = url.replace(/^https?:\/\//i, "");
-  dnsPromises.lookup(urlWithoutProtocol)
+  const urlWithoutProtocolAndFormated = urlWithoutProtocol.split("/")[0];
+  await dnsPromises.lookup(urlWithoutProtocolAndFormated)
     .then(async (val) => {
       let exist = await Url.findOne({
         initial: url
@@ -86,11 +85,11 @@ app.post("/api/shorturl", async function (req, res, next) {
           new: lastCreatedUrl ? lastCreatedUrl.new + 1 : 1
         });
         const finalUrl = await newUrl.save();
-
-        res.json({
-          original_url: finalUrl.original,
-          short_url: finalUrl.new
-        });
+        let response = {
+          original_url: newUrl.initial,
+          short_url: newUrl.new
+        };
+        res.json(response);
         next();
       } catch (err) {
         res.status(500).send(err);
